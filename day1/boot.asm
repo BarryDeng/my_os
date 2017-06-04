@@ -1,23 +1,20 @@
 
 ;%define	_BOOT_DEBUG_
 
-%ifdef	_BOOT_DEBUG_
-	org  0100h			; Debug
-%else
-	org  07c00h			; Boot
-%endif
-
 ;================================================================================================
 %ifdef	_BOOT_DEBUG_
-BaseOfStack		equ	0100h	;
+	org  0100h			; Debug
+	BaseOfStack		equ	0100h	;
 %else
-BaseOfStack		equ	07c00h	;
+	org  07c00h			; Boot
+	BaseOfStack		equ	07c00h	;
 %endif
 
 BaseOfLoader		equ	09000h	; LOADER.BIN 被加载到的位置 ----  段地址
 OffsetOfLoader		equ	0100h	; LOADER.BIN 被加载到的位置 ---- 偏移地址
 ;================================================================================================
 
+; 
 	jmp short LABEL_START		; Start to boot.
 	nop				
 
@@ -35,21 +32,22 @@ LABEL_START:
 	mov	bx, 0700h		; 黑底白字(BL = 07h)
 	mov	cx, 0			; 左上角: (0, 0)
 	mov	dx, 0184fh		; 右下角: (80, 50)
-	int	10h			; int 10h
+	int	10h				; int 10h
 
 	mov	dh, 0			; "Booting  "
-	call	DispStr			; 显示字符串
+	call	DispStr		; 显示字符串
 	
 	xor	ah, ah	; ┓
 	xor	dl, dl	; ┣ 软驱复位
-	int	13h	; ┛
+	int	13h		; ┛
 	
-; 下面在 A 盘的根目录寻找 LOADER.BIN
-	mov	word [wSectorNo], SectorNoOfRootDirectory
+; 在根目录寻找 LOADER.BIN
+	mov	word [wSectorNo], SectorNumOfRootDir
 LABEL_SEARCH_IN_ROOT_DIR_BEGIN:
 	cmp	word [wRootDirSizeForLoop], 0	; ┓
-	jz	LABEL_NO_LOADERBIN		; ┣ 判断根目录区是不是已经读完
-	dec	word [wRootDirSizeForLoop]	; ┛ 如果读完表示没有找到 LOADER.BIN
+	jz	LABEL_NO_LOADERBIN				; ┣ 判断根目录区是不是已经读完
+	dec	word [wRootDirSizeForLoop]		; ┛ 如果读完表示没有找到 LOADER.BIN
+	
 	mov	ax, BaseOfLoader
 	mov	es, ax			; es <- BaseOfLoader
 	mov	bx, OffsetOfLoader	; bx <- OffsetOfLoader	于是, es:bx = BaseOfLoader:OffsetOfLoader
@@ -80,10 +78,10 @@ LABEL_GO_ON:
 	jmp	LABEL_CMP_FILENAME	;	继续循环
 
 LABEL_DIFFERENT:
-	and	di, 0FFE0h						; else ┓	di &= E0 为了让它指向本条目开头
-	add	di, 20h							;     ┃
-	mov	si, LoaderFileName					;     ┣ di += 20h  下一个目录条目
-	jmp	LABEL_SEARCH_FOR_LOADERBIN;    ┛
+	and	di, 0FFE0h						; else ┓ di &= E0 为了让它指向本条目开头
+	add	di, 20h							;      ┃
+	mov	si, LoaderFileName				;      ┣ di += 20h  下一个目录条目
+	jmp	LABEL_SEARCH_FOR_LOADERBIN		;      ┛
 
 LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR:
 	add	word [wSectorNo], 1
@@ -94,7 +92,7 @@ LABEL_NO_LOADERBIN:
 	call	DispStr			; 显示字符串
 %ifdef	_BOOT_DEBUG_
 	mov	ax, 4c00h		; ┓
-	int	21h			; ┛没有找到 LOADER.BIN, 回到 DOS
+	int	21h				; ┛没有找到 LOADER.BIN, 回到 DOS
 %else
 	jmp	$			; 没有找到 LOADER.BIN, 死循环在这里
 %endif
@@ -106,7 +104,7 @@ LABEL_FILENAME_FOUND:			; 找到 LOADER.BIN 后便来到这里继续
 	mov	cx, word [es:di]
 	push	cx			; 保存此 Sector 在 FAT 中的序号
 	add	cx, ax
-	add	cx, DeltaSectorNo	; 这句完成时 cl 里面变成 LOADER.BIN 的起始扇区号 (从 0 开始数的序号)
+	add	cx, DeltaSectorNum	; 这句完成时 cl 里面变成 LOADER.BIN 的起始扇区号 (从 0 开始数的序号)
 	mov	ax, BaseOfLoader
 	mov	es, ax			; es <- BaseOfLoader
 	mov	bx, OffsetOfLoader	; bx <- OffsetOfLoader	于是, es:bx = BaseOfLoader:OffsetOfLoader = BaseOfLoader * 10h + OffsetOfLoader
@@ -118,9 +116,9 @@ LABEL_GOON_LOADING_FILE:
 	mov	ah, 0Eh			; ┃ 每读一个扇区就在 "Booting  " 后面打一个点, 形成这样的效果:
 	mov	al, '.'			; ┃
 	mov	bl, 0Fh			; ┃ Booting ......
-	int	10h			; ┃
-	pop	bx			; ┃
-	pop	ax			; ┛
+	int	10h				; ┃
+	pop	bx				; ┃
+	pop	ax				; ┛
 
 	mov	cl, 1
 	call	ReadSector
@@ -131,7 +129,7 @@ LABEL_GOON_LOADING_FILE:
 	push	ax			; 保存 Sector 在 FAT 中的序号
 	mov	dx, RootDirSectors
 	add	ax, dx
-	add	ax, DeltaSectorNo
+	add	ax, DeltaSectorNum
 	add	bx, [BPB_BytsPerSec]
 	jmp	LABEL_GOON_LOADING_FILE
 LABEL_FILE_LOADED:
@@ -258,7 +256,7 @@ LABEL_EVEN:;偶数
 					;				dx <- 余数 (FATEntry 在扇区内的偏移)。
 	push	dx
 	mov	bx, 0			; bx <- 0	于是, es:bx = (BaseOfLoader - 100):00 = (BaseOfLoader - 100) * 10h
-	add	ax, SectorNoOfFAT1	; 此句执行之后的 ax 就是 FATEntry 所在的扇区号
+	add	ax, SectorNumOfFAT1	; 此句执行之后的 ax 就是 FATEntry 所在的扇区号
 	mov	cl, 2
 	call	ReadSector		; 读取 FATEntry 所在的扇区, 一次读两个, 避免在边界发生错误, 因为一个 FATEntry 可能跨越两个扇区
 	pop	dx
