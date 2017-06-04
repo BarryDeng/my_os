@@ -1,15 +1,32 @@
 org	0100h
-
-BaseOfStack	equ	0100h
-
-BaseOfKernelFile	equ	0800h
-OffsetOfkernelFile	equ	0h
-
 	jmp LABEL_START
 	nop
 
 %include	"fat12hdr.inc"
-	
+%include	"pm.inc"
+%include	"load.inc"
+
+; GDT
+LABEL_GDT:	Descriptor	0,	0,	0,
+; 可执行段
+LABEL_DESC_FLAT_C:	Descriptor	0,	0fffffh,	DA_CR | DA_32 | DA_LIMIT_4K
+; 读写段
+LABEL_DESC_FLAT_RW:	Descriptor	0,	0fffffh,	DA_DRW | DA_32 | DA_LIMIT_4K
+LABEL_DESC_VIDEO:	Descriptor	0B8000h,	0fffffh,	DA_DRW | DA_DPL3
+
+GdtLen 	equ	$ - LABEL_GDT
+GdtPtr	dw	GdtLen							;段界
+		dd	BaseOfLoaderPhyAddr + LABEL_GDT	;基址
+
+; Selector
+SelectorFlatC	equ	LABEL_DESC_FLAT_C	- LABEL_GDT
+SelectorFlatRW	equ	LABEL_DESC_FLAT_RW	- LABEL_GDT
+SelectorVideo	equ	LABEL_DESC_VIDEO	- LABEL_GDT + SA_RPL3
+
+BaseOfStack	equ	0100h
+PageDirBase	equ	100000h	; 页目录开始地址:	1M
+PageTblBase	equ	101000h	; 页表开始地址:		1M + 4K
+
 LABEL_START:
 	mov ax,	cs
 	mov es,	ax
@@ -121,19 +138,46 @@ LABEL_GOON_LOADING_FILE:
 	add ax, DeltaSectorNum
 	add bx, [BPB_BytsPerSec]
 	jmp	LABEL_GOON_LOADING_FILE
-LABEL_FILE_LOADED:
+LABEL_FILE_LOADED:	
+	call KillMotor
+	mov dh, 1
+	call DispStr
+	
+	lgdt	[GdtPtr]
+	
+	cli
+	
+	in al, 92h
+	or al, 20H
+	out 92h, al
+	
+	mov eax, cr0
+	or	eax, 1
+	mov cr0, eax
+	
+	jmp SelectorFlatC:(BaseOfLoaderPhyAddr+LABEL_PM_START)
+	
+KillMotor:
 	;关闭软盘马达
 	push	dx
 	mov dx, 03F2h
 	mov al, 0
 	out dx, al
 	pop dx
-	
-	mov dh, 1
-	call DispStr
-	
-	jmp $
 
+; 32位代码段
+[SECTION .s32]
+
+ALIGN 32
+
+[BITS 32]
+
+LABEL_PM_START:
+	mov ah, 0Fh
+	mov al, 'N'
+	mov [gs:((80 * 0 + 20) * 2)], ax
+	jmp $
+	
 ;============================================================================
 ;变量
 ;----------------------------------------------------------------------------
