@@ -6,6 +6,7 @@ org  0100h
 %include	"fat12hdr.inc"
 %include	"load.inc"
 %include	"pm.inc"
+%include	"lib.inc"
 
 
 ; GDT ------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -43,12 +44,12 @@ LABEL_START:
 
 	; 得到内存数
 	mov	ebx, 0			; ebx = 后续值, 开始时需为 0
-	mov	di, _MemChkBuf	; es:di 指向一个地址范围描述符结构（Address Range Descriptor Structure）
+	mov	di, _MemChkBuf		; es:di 指向一个地址范围描述符结构（Address Range Descriptor Structure）
 .MemChkLoop:
-	mov	eax, 0E820h		; eax = 0000E820h
-	mov	ecx, 20			; ecx = 地址范围描述符结构的大小
-	mov	edx, 0534D4150h	; edx = 'SMAP'
-	int	15h				; int 15h
+	mov	eax, 0E820h			; eax = 0000E820h
+	mov	ecx, 20				; ecx = 地址范围描述符结构的大小
+	mov	edx, 0534D4150h		; edx = 'SMAP'
+	int	15h					; int 15h
 	jc	.MemChkFail
 	add	di, 20
 	inc	dword [_dwMCRNumber]	; dwMCRNumber = ARDS 的个数
@@ -176,7 +177,7 @@ LABEL_FILE_LOADED:
 
 ; 打开地址线A20
 	in	al, 92h
-	or	al, 20h
+	or	al, 00000010b
 	out	92h, al
 
 ; 准备切换到保护模式
@@ -186,8 +187,6 @@ LABEL_FILE_LOADED:
 
 ; 真正进入保护模式
 	jmp	dword SelectorFlatC:(BaseOfLoaderPhyAddr+LABEL_PM_START)
-
-	jmp	$
 
 
 ;============================================================================
@@ -356,7 +355,7 @@ LABEL_PM_START:
 	mov	esp, TopOfStack
 
 	push	szMemChkTitle
-	call	DispStr2
+	call	DispStr
 	add	esp, 4
 
 	call	DispMemInfo
@@ -365,9 +364,9 @@ LABEL_PM_START:
 	mov	ah, 0Fh				; 0000: 黑底    1111: 白字
 	mov	al, 'P'
 	mov	[gs:((80 * 0 + 39) * 2)], ax	; 屏幕第 0 行, 第 39 列。
-	
-	call InitKernel
-	
+
+	call	InitKernel
+
 	jmp	SelectorFlatC:KernelEntryPointPhyAddr
 
 
