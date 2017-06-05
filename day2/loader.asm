@@ -6,7 +6,7 @@ org  0100h
 %include	"fat12hdr.inc"
 %include	"load.inc"
 %include	"pm.inc"
-%include	"lib.inc"
+
 
 
 ; GDT ------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -595,11 +595,11 @@ dwDispPos		equ	BaseOfLoaderPhyAddr + _dwDispPos
 dwMemSize		equ	BaseOfLoaderPhyAddr + _dwMemSize
 dwMCRNumber		equ	BaseOfLoaderPhyAddr + _dwMCRNumber
 ARDStruct		equ	BaseOfLoaderPhyAddr + _ARDStruct
-	dwBaseAddrLow	equ	BaseOfLoaderPhyAddr + _dwBaseAddrLow
-	dwBaseAddrHigh	equ	BaseOfLoaderPhyAddr + _dwBaseAddrHigh
-	dwLengthLow	equ	BaseOfLoaderPhyAddr + _dwLengthLow
-	dwLengthHigh	equ	BaseOfLoaderPhyAddr + _dwLengthHigh
-	dwType		equ	BaseOfLoaderPhyAddr + _dwType
+dwBaseAddrLow	equ	BaseOfLoaderPhyAddr + _dwBaseAddrLow
+dwBaseAddrHigh	equ	BaseOfLoaderPhyAddr + _dwBaseAddrHigh
+dwLengthLow	equ	BaseOfLoaderPhyAddr + _dwLengthLow
+dwLengthHigh	equ	BaseOfLoaderPhyAddr + _dwLengthHigh
+dwType		equ	BaseOfLoaderPhyAddr + _dwType
 MemChkBuf		equ	BaseOfLoaderPhyAddr + _MemChkBuf
 
 
