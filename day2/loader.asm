@@ -10,8 +10,8 @@ org  0100h
 
 ; GDT ------------------------------------------------------------------------------------------------------------------------------------------------------------
 LABEL_GDT:	Descriptor	0,	0, 0						; ¿ÕÃèÊö·û
-LABEL_DESC_FLAT_C:	Descriptor	0,	0fffffh, DA_CR  | DA_32 | DA_LIMIT_4K			
-LABEL_DESC_FLAT_RW:	Descriptor	0,	0fffffh, DA_DRW | DA_32 | DA_LIMIT_4K			
+LABEL_DESC_FLAT_C:	Descriptor	0,	0fffffh, DA_CR  | DA_32 | DA_LIMIT_4K	;¿ÉÖ´ÐÐ´úÂë¶Î		
+LABEL_DESC_FLAT_RW:	Descriptor	0,	0fffffh, DA_DRW | DA_32 | DA_LIMIT_4K	;Êý¾Ý¶ÁÐ´¶Î
 LABEL_DESC_VIDEO:	Descriptor	0B8000h,	0ffffh,	DA_DRW	| DA_DPL3	
 ; GDT ------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -368,7 +368,7 @@ LABEL_PM_START:
 	
 	call InitKernel
 	
-	jmp	$
+	jmp	SelectorFlatC:KernelEntryPointPhyAddr
 
 
 %include	"lib.inc"
