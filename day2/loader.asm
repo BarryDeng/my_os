@@ -17,7 +17,7 @@ LABEL_DESC_VIDEO:	Descriptor	0B8000h,	0ffffh,	DA_DRW	| DA_DPL3
 
 GdtLen		equ	$ - LABEL_GDT
 GdtPtr		dw	GdtLen - 1				; 段界限
-		dd	BaseOfLoaderPhyAddr + LABEL_GDT		; 基地址
+			dd	BaseOfLoaderPhyAddr + LABEL_GDT		; 基地址
 
 ; GDT 选择子 ----------------------------------------------------------------------------------
 SelectorFlatC		equ	LABEL_DESC_FLAT_C	- LABEL_GDT
@@ -31,7 +31,7 @@ PageDirBase	equ	100000h	; 页目录开始地址:	1M
 PageTblBase	equ	101000h	; 页表开始地址:		1M + 4K
 
 
-LABEL_START:			; <--- 从这里开始 *************
+LABEL_START:		
 	mov	ax, cs
 	mov	ds, ax
 	mov	es, ax
@@ -39,7 +39,7 @@ LABEL_START:			; <--- 从这里开始 *************
 	mov	sp, BaseOfStack
 
 	mov	dh, 0			; "Loading  "
-	call	DispStrRealMode		; 显示字符串
+	call	DispStr2	; 显示字符串
 
 	; 得到内存数
 	mov	ebx, 0			; ebx = 后续值, 开始时需为 0
@@ -61,33 +61,36 @@ LABEL_START:			; <--- 从这里开始 *************
 
 	; 下面在 A 盘的根目录寻找 KERNEL.BIN
 	mov	word [wSectorNo], SectorNoOfRootDirectory	
-	xor	ah, ah	; ┓
-	xor	dl, dl	; ┣ 软驱复位
-	int	13h	; ┛
+	xor	ah, ah
+	xor	dl, dl	
+	int	13h	
+	
 LABEL_SEARCH_IN_ROOT_DIR_BEGIN:
 	cmp	word [wRootDirSizeForLoop], 0	; ┓
-	jz	LABEL_NO_KERNELBIN		; ┣ 判断根目录区是不是已经读完, 如果读完表示没有找到 KERNEL.BIN
-	dec	word [wRootDirSizeForLoop]	; ┛
+	jz	LABEL_NO_KERNELBIN				; ┣ 判断根目录区是不是已经读完, 如果读完表示没有找到 KERNEL.BIN
+	dec	word [wRootDirSizeForLoop]		; ┛
+	
 	mov	ax, BaseOfKernelFile
 	mov	es, ax			; es <- BaseOfKernelFile
-	mov	bx, OffsetOfKernelFile	; bx <- OffsetOfKernelFile	于是, es:bx = BaseOfKernelFile:OffsetOfKernelFile = BaseOfKernelFile * 10h + OffsetOfKernelFile
+	mov	bx, OffsetOfKernelFile	; bx <- OffsetOfKernelFile	
 	mov	ax, [wSectorNo]		; ax <- Root Directory 中的某 Sector 号
 	mov	cl, 1
 	call	ReadSector
 
-	mov	si, KernelFileName	; ds:si -> "KERNEL  BIN"
-	mov	di, OffsetOfKernelFile	; es:di -> BaseOfKernelFile:???? = BaseOfKernelFile*10h+????
+	mov	si, KernelFileName	
+	mov	di, OffsetOfKernelFile	
 	cld
 	mov	dx, 10h
+	
 LABEL_SEARCH_FOR_KERNELBIN:
-	cmp	dx, 0					; ┓
-	jz	LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR	; ┣ 循环次数控制, 如果已经读完了一个 Sector, 就跳到下一个 Sector
-	dec	dx					; ┛
+	cmp	dx, 0								
+	jz	LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR	
+	dec	dx						
 	mov	cx, 11
 LABEL_CMP_FILENAME:
-	cmp	cx, 0			; ┓
-	jz	LABEL_FILENAME_FOUND	; ┣ 循环次数控制, 如果比较了 11 个字符都相等, 表示找到
-	dec	cx			; ┛
+	cmp	cx, 0			
+	jz	LABEL_FILENAME_FOUND	
+	dec	cx			
 	lodsb				; ds:si -> al
 	cmp	al, byte [es:di]	; if al == es:di
 	jz	LABEL_GO_ON
@@ -95,11 +98,10 @@ LABEL_CMP_FILENAME:
 LABEL_GO_ON:
 	inc	di
 	jmp	LABEL_CMP_FILENAME	;	继续循环
-
 LABEL_DIFFERENT:
-	and	di, 0FFE0h		; else┓	这时di的值不知道是什么, di &= e0 为了让它是 20h 的倍数
-	add	di, 20h			;     ┃
-	mov	si, KernelFileName	;     ┣ di += 20h  下一个目录条目
+	and	di, 0FFE0h				; else┓	这时di的值不知道是什么, di &= e0 为了让它是 20h 的倍数
+	add	di, 20h					;     ┃
+	mov	si, KernelFileName		;     ┣ di += 20h  下一个目录条目
 	jmp	LABEL_SEARCH_FOR_KERNELBIN;   ┛
 
 LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR:
@@ -108,15 +110,15 @@ LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR:
 
 LABEL_NO_KERNELBIN:
 	mov	dh, 2			; "No KERNEL."
-	call	DispStrRealMode		; 显示字符串
+	call	DispStr2	; 显示字符串
 %ifdef	_LOADER_DEBUG_
-	mov	ax, 4c00h		; ┓
-	int	21h			; ┛没有找到 KERNEL.BIN, 回到 DOS
+	mov	ax, 4c00h		
+	int	21h			
 %else
-	jmp	$			; 没有找到 KERNEL.BIN, 死循环在这里
+	jmp	$			
 %endif
 
-LABEL_FILENAME_FOUND:			; 找到 KERNEL.BIN 后便来到这里继续
+LABEL_FILENAME_FOUND:			
 	mov	ax, RootDirSectors
 	and	di, 0FFF0h		; di -> 当前条目的开始
 
@@ -141,9 +143,9 @@ LABEL_GOON_LOADING_FILE:
 	mov	ah, 0Eh			; ┃ 每读一个扇区就在 "Loading  " 后面打一个点, 形成这样的效果:
 	mov	al, '.'			; ┃
 	mov	bl, 0Fh			; ┃ Loading ......
-	int	10h			; ┃
-	pop	bx			; ┃
-	pop	ax			; ┛
+	int	10h				; ┃
+	pop	bx				; ┃
+	pop	ax				; ┛
 
 	mov	cl, 1
 	call	ReadSector
@@ -162,7 +164,7 @@ LABEL_FILE_LOADED:
 	call	KillMotor		; 关闭软驱马达
 
 	mov	dh, 1			; "Ready."
-	call	DispStrRealMode		; 显示字符串
+	call	DispStr2	; 显示字符串
 	
 ; 下面准备跳入保护模式 -------------------------------------------
 
@@ -174,7 +176,7 @@ LABEL_FILE_LOADED:
 
 ; 打开地址线A20
 	in	al, 92h
-	or	al, 00000010b
+	or	al, 20h
 	out	92h, al
 
 ; 准备切换到保护模式
@@ -202,19 +204,19 @@ dwKernelSize		dd	0		; KERNEL.BIN 文件大小
 KernelFileName		db	"KERNEL  BIN", 0	; KERNEL.BIN 之文件名
 ; 为简化代码, 下面每个字符串的长度均为 MessageLength
 MessageLength		equ	9
-LoadMessage:		db	"Loading  "
+LoadMessage:	db	"Loading  "
 Message1		db	"Ready.   "
 Message2		db	"No KERNEL"
 ;============================================================================
 
 ;----------------------------------------------------------------------------
-; 函数名: DispStrRealMode
+; 函数名: DispStr2
 ;----------------------------------------------------------------------------
 ; 运行环境:
-;	实模式（保护模式下显示字符串由函数 DispStr 完成）
+;	实模式（保护模式下显示字符串由函数 DispStr2 完成）
 ; 作用:
 ;	显示一个字符串, 函数开始时 dh 中应该是字符串序号(0-based)
-DispStrRealMode:
+DispStr2:
 	mov	ax, MessageLength
 	mul	dh
 	add	ax, LoadMessage
@@ -282,8 +284,8 @@ GetFATEntry:
 	push	bx
 	push	ax
 	mov	ax, BaseOfKernelFile	; ┓
-	sub	ax, 0100h		; ┣ 在 BaseOfKernelFile 后面留出 4K 空间用于存放 FAT
-	mov	es, ax			; ┛
+	sub	ax, 0100h				; ┣ 在 BaseOfKernelFile 后面留出 4K 空间用于存放 FAT
+	mov	es, ax					; ┛
 	pop	ax
 	mov	byte [bOdd], 0
 	mov	bx, 3
@@ -354,7 +356,7 @@ LABEL_PM_START:
 	mov	esp, TopOfStack
 
 	push	szMemChkTitle
-	call	DispStr
+	call	DispStr2
 	add	esp, 4
 
 	call	DispMemInfo
@@ -377,32 +379,33 @@ DispMemInfo:
 
 	mov	esi, MemChkBuf
 	mov	ecx, [dwMCRNumber]	;for(int i=0;i<[MCRNumber];i++) // 每次得到一个ARDS(Address Range Descriptor Structure)结构
-.loop:					;{
-	mov	edx, 5			;	for(int j=0;j<5;j++)	// 每次得到一个ARDS中的成员，共5个成员
+.loop:						;{
+	mov	edx, 5				;	for(int j=0;j<5;j++)	// 每次得到一个ARDS中的成员，共5个成员
 	mov	edi, ARDStruct		;	{			// 依次显示：BaseAddrLow，BaseAddrHigh，LengthLow，LengthHigh，Type
-.1:					;
+.1:					
 	push	dword [esi]		;
 	call	DispInt			;		DispInt(MemChkBuf[j*4]); // 显示一个成员
-	pop	eax			;
-	stosd				;		ARDStruct[j*4] = MemChkBuf[j*4];
-	add	esi, 4			;
-	dec	edx			;
-	cmp	edx, 0			;
-	jnz	.1			;	}
+	pop	eax			
+	stosd					;		ARDStruct[j*4] = MemChkBuf[j*4];
+	add	esi, 4			
+	dec	edx			
+	cmp	edx, 0			
+	jnz	.1					;	}
+	
 	call	DispReturn		;	printf("\n");
 	cmp	dword [dwType], 1	;	if(Type == AddressRangeMemory) // AddressRangeMemory : 1, AddressRangeReserved : 2
-	jne	.2			;	{
-	mov	eax, [dwBaseAddrLow]	;
+	jne	.2					;	{
+	mov	eax, [dwBaseAddrLow]	
 	add	eax, [dwLengthLow]	;
 	cmp	eax, [dwMemSize]	;		if(BaseAddrLow + LengthLow > MemSize)
-	jb	.2			;
+	jb	.2			
 	mov	[dwMemSize], eax	;			MemSize = BaseAddrLow + LengthLow;
-.2:					;	}
+.2:							;	}
 	loop	.loop			;}
-					;
+
 	call	DispReturn		;printf("\n");
 	push	szRAMSize		;
-	call	DispStr			;printf("RAM size:");
+	call	DispStr2		;printf("RAM size:");
 	add	esp, 4			;
 					;
 	push	dword [dwMemSize]	;
@@ -476,19 +479,19 @@ ALIGN	32
 LABEL_DATA:
 ; 实模式下使用这些符号
 ; 字符串
-_szMemChkTitle:			db	"BaseAddrL BaseAddrH LengthLow LengthHigh   Type", 0Ah, 0
+_szMemChkTitle:		db	"BaseAddrL BaseAddrH LengthLow LengthHigh   Type", 0Ah, 0
 _szRAMSize:			db	"RAM size:", 0
 _szReturn:			db	0Ah, 0
 ;; 变量
-_dwMCRNumber:			dd	0	; Memory Check Result
+_dwMCRNumber:		dd	0	; Memory Check Result
 _dwDispPos:			dd	(80 * 6 + 0) * 2	; 屏幕第 6 行, 第 0 列。
 _dwMemSize:			dd	0
 _ARDStruct:			; Address Range Descriptor Structure
-	_dwBaseAddrLow:		dd	0
-	_dwBaseAddrHigh:	dd	0
-	_dwLengthLow:		dd	0
-	_dwLengthHigh:		dd	0
-	_dwType:		dd	0
+_dwBaseAddrLow:		dd	0
+_dwBaseAddrHigh:	dd	0
+_dwLengthLow:		dd	0
+_dwLengthHigh:		dd	0
+_dwType:			dd	0
 _MemChkBuf:	times	256	db	0
 ;
 ;; 保护模式下使用这些符号
