@@ -365,11 +365,101 @@ LABEL_PM_START:
 	mov	ah, 0Fh				; 0000: 黑底    1111: 白字
 	mov	al, 'P'
 	mov	[gs:((80 * 0 + 39) * 2)], ax	; 屏幕第 0 行, 第 39 列。
+	
+	call InitKernel
+	
 	jmp	$
 
 
 %include	"lib.inc"
 
+; kernel.bin 的elf文件头信息
+;ELF Header:
+;  Magic:   7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00 
+;  Class:							ELF32
+;  Data:							2's complement, little endian
+;  Version:							1 (current)
+;  OS/ABI:							UNIX - System V
+;  ABI Version:						0
+;  e_type:							2h
+;  e_machine:						3h
+;  e_version:						1h
+;  e_entry:							30400h
+;  e_phoff:							34h
+;  e_shoff:							424h
+;  e_flag:							0h
+;  e_shsize:						34h
+;  e_phentsize:						20h
+;  e_phnum:    					    1h
+;  e_shentsize:			            28h
+;  e_shnum:         				3h
+;  e_shstrndx:						2h
+
+;Program Headers:
+; e_type		p_offset  p_vaddr	 p_paddr	p_filesz  p_memsz   p_flags  p_align
+; Type           Offset   VirtAddr   PhysAddr   FileSiz   MemSiz    Flg   	 Align
+; LOAD(1h)       0x000000 0x00030000 0x00030000 0x0040d   0x0040d   R E   	 0x1000
+
+InitKernel:	
+	xor	esi, esi
+	mov	cx, word [BaseOfKernelFilePhyAddr + 2Ch]	;e_phnum在偏移2Ch的位置
+	movzx	ecx, cx								
+	mov	esi, [BaseOfKernelFilePhyAddr + 1Ch]	;e_phoff在偏移1Ch的位置
+	add	esi, BaseOfKernelFilePhyAddr		; esi <- Program Header的具体地址
+.Begin:
+	mov	eax, [esi + 0]
+	cmp	eax, 0				
+	jz	.NoAction
+	push	dword [esi + 010h]		; p_filesz (偏移10h)	┓
+	mov	eax, [esi + 04h]			; p_offset (偏移04h)	┃
+	add	eax, BaseOfKernelFilePhyAddr	;					┣ memcpy(p_vaddr,p_offset,p_filesz)
+	push	eax						; 						┃		
+	push	dword [esi + 08h]		; p_vaddr  (偏移08h)	┃		
+	call	MemCpy					;						┛
+	add	esp, 12												
+.NoAction:
+	add	esi, 020h			; esi += e_phentsize
+	dec	ecx
+	jnz	.Begin
+
+	ret
+
+; memcpy(p_vaddr,p_offset,p_filesz)
+; 把p_filesz大小的内容放在p_vaddr
+MemCpy:
+	push	ebp
+	mov	ebp, esp
+
+	push	esi
+	push	edi
+	push	ecx
+
+	mov	edi, [ebp + 8]	; p_vaddr
+	mov	esi, [ebp + 12]	; p_offset
+	mov	ecx, [ebp + 16]	; p_filesz
+.1:
+	cmp	ecx, 0		; 判断文件剩余大小
+	jz	.2			; 为零时跳出
+
+	mov	al, [ds:esi]		; ┓
+	inc	esi					; ┃
+							; ┣ 逐字节移动
+	mov	byte [es:edi], al	; ┃
+	inc	edi					; ┛
+
+	dec	ecx		; 计数器减一
+	jmp	.1		; 循环
+.2:
+	mov	eax, [ebp + 8]	; 返回值
+
+	pop	ecx
+	pop	edi
+	pop	esi
+	mov	esp, ebp
+	pop	ebp
+
+	ret			; 函数结束，返回
+	
 
 ; 显示内存信息 --------------------------------------------------------------
 DispMemInfo:
