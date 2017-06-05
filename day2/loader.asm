@@ -3,19 +3,18 @@ org  0100h
 
 	jmp	LABEL_START		; Start
 
+; 下面是 FAT12 磁盘的头, 之所以包含它是因为下面用到了磁盘的一些信息
 %include	"fat12hdr.inc"
 %include	"load.inc"
 %include	"pm.inc"
 
 
-
-; GDT ------------------------------------------------------------------------------------------------------------------------------------------------------------
-LABEL_GDT:	Descriptor	0,	0, 0						; 空描述符
-LABEL_DESC_FLAT_C:	Descriptor	0,	0fffffh, DA_CR  | DA_32 | DA_LIMIT_4K	;可执行代码段		
-LABEL_DESC_FLAT_RW:	Descriptor	0,	0fffffh, DA_DRW | DA_32 | DA_LIMIT_4K	;数据读写段
-LABEL_DESC_VIDEO:	Descriptor	0B8000h,	0ffffh,	DA_DRW	| DA_DPL3	
-; GDT ------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+; GDT ---------------------------------------------------------------------------------
+LABEL_GDT:	Descriptor	0,	0,	0
+LABEL_DESC_FLAT_C:	Descriptor	0,	0fffffh, DA_CR  | DA_32 | DA_LIMIT_4K			
+LABEL_DESC_FLAT_RW:	Descriptor	0,	0fffffh, DA_DRW | DA_32 | DA_LIMIT_4K
+LABEL_DESC_VIDEO:	Descriptor	0B8000h,	0ffffh, DA_DRW	| DA_DPL3	; 显存首地址
+; GDT ---------------------------------------------------------------------------------
 GdtLen		equ	$ - LABEL_GDT
 GdtPtr		dw	GdtLen - 1				; 段界限
 			dd	BaseOfLoaderPhyAddr + LABEL_GDT		; 基地址
@@ -28,11 +27,9 @@ SelectorVideo		equ	LABEL_DESC_VIDEO	- LABEL_GDT + SA_RPL3
 
 
 BaseOfStack	equ	0100h
-PageDirBase	equ	100000h	; 页目录开始地址:	1M
-PageTblBase	equ	101000h	; 页表开始地址:		1M + 4K
 
 
-LABEL_START:		
+LABEL_START:			
 	mov	ax, cs
 	mov	ds, ax
 	mov	es, ax
@@ -40,16 +37,16 @@ LABEL_START:
 	mov	sp, BaseOfStack
 
 	mov	dh, 0			; "Loading  "
-	call	DispStr2	; 显示字符串
+	call	DispStrRealMode		; 显示字符串
 
 	; 得到内存数
 	mov	ebx, 0			; ebx = 后续值, 开始时需为 0
 	mov	di, _MemChkBuf		; es:di 指向一个地址范围描述符结构（Address Range Descriptor Structure）
 .MemChkLoop:
-	mov	eax, 0E820h			; eax = 0000E820h
-	mov	ecx, 20				; ecx = 地址范围描述符结构的大小
+	mov	eax, 0E820h		; eax = 0000E820h
+	mov	ecx, 20			; ecx = 地址范围描述符结构的大小
 	mov	edx, 0534D4150h		; edx = 'SMAP'
-	int	15h					; int 15h
+	int	15h			; int 15h
 	jc	.MemChkFail
 	add	di, 20
 	inc	dword [_dwMCRNumber]	; dwMCRNumber = ARDS 的个数
@@ -62,36 +59,34 @@ LABEL_START:
 
 	; 下面在 A 盘的根目录寻找 KERNEL.BIN
 	mov	word [wSectorNo], SectorNoOfRootDirectory	
-	xor	ah, ah
+	xor	ah, ah	
 	xor	dl, dl	
-	int	13h	
+	int	13h		
 	
 LABEL_SEARCH_IN_ROOT_DIR_BEGIN:
 	cmp	word [wRootDirSizeForLoop], 0	; ┓
 	jz	LABEL_NO_KERNELBIN				; ┣ 判断根目录区是不是已经读完, 如果读完表示没有找到 KERNEL.BIN
 	dec	word [wRootDirSizeForLoop]		; ┛
-	
 	mov	ax, BaseOfKernelFile
 	mov	es, ax			; es <- BaseOfKernelFile
-	mov	bx, OffsetOfKernelFile	; bx <- OffsetOfKernelFile	
+	mov	bx, OffsetOfKernelFile	; bx <- OffsetOfKernelFile	于是, es:bx = BaseOfKernelFile:OffsetOfKernelFile = BaseOfKernelFile * 10h + OffsetOfKernelFile
 	mov	ax, [wSectorNo]		; ax <- Root Directory 中的某 Sector 号
 	mov	cl, 1
 	call	ReadSector
 
-	mov	si, KernelFileName	
-	mov	di, OffsetOfKernelFile	
+	mov	si, KernelFileName	; ds:si -> "KERNEL  BIN"
+	mov	di, OffsetOfKernelFile	; es:di -> BaseOfKernelFile:???? = BaseOfKernelFile*10h+????
 	cld
 	mov	dx, 10h
-	
 LABEL_SEARCH_FOR_KERNELBIN:
-	cmp	dx, 0								
-	jz	LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR	
-	dec	dx						
+	cmp	dx, 0					; ┓
+	jz	LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR	; ┣ 循环次数控制, 如果已经读完了一个 Sector, 就跳到下一个 Sector
+	dec	dx					; ┛
 	mov	cx, 11
 LABEL_CMP_FILENAME:
-	cmp	cx, 0			
-	jz	LABEL_FILENAME_FOUND	
-	dec	cx			
+	cmp	cx, 0			; ┓
+	jz	LABEL_FILENAME_FOUND	; ┣ 循环次数控制, 如果比较了 11 个字符都相等, 表示找到
+	dec	cx			; ┛
 	lodsb				; ds:si -> al
 	cmp	al, byte [es:di]	; if al == es:di
 	jz	LABEL_GO_ON
@@ -99,6 +94,7 @@ LABEL_CMP_FILENAME:
 LABEL_GO_ON:
 	inc	di
 	jmp	LABEL_CMP_FILENAME	;	继续循环
+
 LABEL_DIFFERENT:
 	and	di, 0FFE0h				; else┓	这时di的值不知道是什么, di &= e0 为了让它是 20h 的倍数
 	add	di, 20h					;     ┃
@@ -111,15 +107,10 @@ LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR:
 
 LABEL_NO_KERNELBIN:
 	mov	dh, 2			; "No KERNEL."
-	call	DispStr2	; 显示字符串
-%ifdef	_LOADER_DEBUG_
-	mov	ax, 4c00h		
-	int	21h			
-%else
-	jmp	$			
-%endif
+	call	DispStrRealMode		; 显示字符串
+	jmp	$			; 没有找到 KERNEL.BIN, 死循环在这里
 
-LABEL_FILENAME_FOUND:			
+LABEL_FILENAME_FOUND:			; 找到 KERNEL.BIN 后便来到这里继续
 	mov	ax, RootDirSectors
 	and	di, 0FFF0h		; di -> 当前条目的开始
 
@@ -165,7 +156,7 @@ LABEL_FILE_LOADED:
 	call	KillMotor		; 关闭软驱马达
 
 	mov	dh, 1			; "Ready."
-	call	DispStr2	; 显示字符串
+	call	DispStrRealMode		; 显示字符串
 	
 ; 下面准备跳入保护模式 -------------------------------------------
 
@@ -203,19 +194,19 @@ dwKernelSize		dd	0		; KERNEL.BIN 文件大小
 KernelFileName		db	"KERNEL  BIN", 0	; KERNEL.BIN 之文件名
 ; 为简化代码, 下面每个字符串的长度均为 MessageLength
 MessageLength		equ	9
-LoadMessage:	db	"Loading  "
+LoadMessage:		db	"Loading  "
 Message1		db	"Ready.   "
 Message2		db	"No KERNEL"
 ;============================================================================
 
 ;----------------------------------------------------------------------------
-; 函数名: DispStr2
+; 函数名: DispStrRealMode
 ;----------------------------------------------------------------------------
 ; 运行环境:
-;	实模式（保护模式下显示字符串由函数 DispStr2 完成）
+;	实模式（保护模式下显示字符串由函数 DispStr 完成）
 ; 作用:
 ;	显示一个字符串, 函数开始时 dh 中应该是字符串序号(0-based)
-DispStr2:
+DispStrRealMode:
 	mov	ax, MessageLength
 	mul	dh
 	add	ax, LoadMessage
@@ -283,8 +274,8 @@ GetFATEntry:
 	push	bx
 	push	ax
 	mov	ax, BaseOfKernelFile	; ┓
-	sub	ax, 0100h				; ┣ 在 BaseOfKernelFile 后面留出 4K 空间用于存放 FAT
-	mov	es, ax					; ┛
+	sub	ax, 0100h		; ┣ 在 BaseOfKernelFile 后面留出 4K 空间用于存放 FAT
+	mov	es, ax			; ┛
 	pop	ax
 	mov	byte [bOdd], 0
 	mov	bx, 3
@@ -367,11 +358,75 @@ LABEL_PM_START:
 
 	call	InitKernel
 
-	mov	ah, 0Fh				; 0000: 黑底    1111: 白字
-	mov	al, 'P'
-	mov	[gs:((80 * 1 + 39) * 2)], ax	; 屏幕第 0 行, 第 39 列。
-	
-	jmp	SelectorFlatC:KernelEntryPointPhyAddr
+	jmp	SelectorFlatC:KernelEntryPointPhyAddr	; 正式进入内核 *
+	;***************************************************************
+	; 内存看上去是这样的：
+	;              ┃                                    ┃
+	;              ┃                 .                  ┃
+	;              ┃                 .                  ┃
+	;              ┃                 .                  ┃
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃■■■■■■■■■■■■■■■■■■┃
+	;              ┃■■■■■■Page  Tables■■■■■■┃
+	;              ┃■■■■■(大小由LOADER决定)■■■■┃
+	;    00101000h ┃■■■■■■■■■■■■■■■■■■┃ PageTblBase
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃■■■■■■■■■■■■■■■■■■┃
+	;    00100000h ┃■■■■Page Directory Table■■■■┃ PageDirBase  <- 1M
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃□□□□□□□□□□□□□□□□□□┃
+	;       F0000h ┃□□□□□□□System ROM□□□□□□┃
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃□□□□□□□□□□□□□□□□□□┃
+	;       E0000h ┃□□□□Expansion of system ROM □□┃
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃□□□□□□□□□□□□□□□□□□┃
+	;       C0000h ┃□□□Reserved for ROM expansion□□┃
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃□□□□□□□□□□□□□□□□□□┃ B8000h ← gs
+	;       A0000h ┃□□□Display adapter reserved□□□┃
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃□□□□□□□□□□□□□□□□□□┃
+	;       9FC00h ┃□□extended BIOS data area (EBDA)□┃
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃■■■■■■■■■■■■■■■■■■┃
+	;       90000h ┃■■■■■■■LOADER.BIN■■■■■■┃ somewhere in LOADER ← esp
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃■■■■■■■■■■■■■■■■■■┃
+	;       80000h ┃■■■■■■■KERNEL.BIN■■■■■■┃
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃■■■■■■■■■■■■■■■■■■┃
+	;       30000h ┃■■■■■■■■KERNEL■■■■■■■┃ 30400h ← KERNEL 入口 (KernelEntryPointPhyAddr)
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃                                    ┃
+	;        7E00h ┃              F  R  E  E            ┃
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃■■■■■■■■■■■■■■■■■■┃
+	;        7C00h ┃■■■■■■BOOT  SECTOR■■■■■■┃
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃                                    ┃
+	;         500h ┃              F  R  E  E            ┃
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃□□□□□□□□□□□□□□□□□□┃
+	;         400h ┃□□□□ROM BIOS parameter area □□┃
+	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;              ┃◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇┃
+	;           0h ┃◇◇◇◇◇◇Int  Vectors◇◇◇◇◇◇┃
+	;              ┗━━━━━━━━━━━━━━━━━━┛ ← cs, ds, es, fs, ss
+	;
+	;
+	;		┏━━━┓		┏━━━┓
+	;		┃■■■┃ Tinix使用	┃□□□┃ 不能使用的内存
+	;		┗━━━┛		┗━━━┛
+	;		┏━━━┓		┏━━━┓
+	;		┃      ┃ 未使用空间	┃◇◇◇┃ 可以覆盖的内存
+	;		┗━━━┛		┗━━━┛
+	;
+	; 注：KERNEL 的位置实际上是很灵活的，可以通过同时改变 LOAD.INC 中的 KernelEntryPointPhyAddr 和 MAKEFILE 中参数 -Ttext 的值来改变。
+	;     比如，如果把 KernelEntryPointPhyAddr 和 -Ttext 的值都改为 0x400400，则 KERNEL 就会被加载到内存 0x400000(4M) 处，入口在 0x400400。
+	;
+
+
 
 
 %include	"lib.inc"
@@ -511,6 +566,7 @@ DispMemInfo:
 	ret
 ; ---------------------------------------------------------------------------
 
+
 ; 启动分页机制 --------------------------------------------------------------
 SetupPaging:
 	; 根据内存大小计算应初始化多少PDE以及多少页表
@@ -563,7 +619,6 @@ SetupPaging:
 	ret
 ; 分页机制启动完毕 ----------------------------------------------------------
 
-
 ; SECTION .data1 之开始 ---------------------------------------------------------------------------------------------
 [SECTION .data1]
 
@@ -572,19 +627,19 @@ ALIGN	32
 LABEL_DATA:
 ; 实模式下使用这些符号
 ; 字符串
-_szMemChkTitle:		db	"BaseAddrL BaseAddrH LengthLow LengthHigh   Type", 0Ah, 0
+_szMemChkTitle:			db	"BaseAddrL BaseAddrH LengthLow LengthHigh   Type", 0Ah, 0
 _szRAMSize:			db	"RAM size:", 0
 _szReturn:			db	0Ah, 0
 ;; 变量
-_dwMCRNumber:		dd	0	; Memory Check Result
+_dwMCRNumber:			dd	0	; Memory Check Result
 _dwDispPos:			dd	(80 * 6 + 0) * 2	; 屏幕第 6 行, 第 0 列。
 _dwMemSize:			dd	0
 _ARDStruct:			; Address Range Descriptor Structure
-_dwBaseAddrLow:		dd	0
-_dwBaseAddrHigh:	dd	0
-_dwLengthLow:		dd	0
-_dwLengthHigh:		dd	0
-_dwType:			dd	0
+	_dwBaseAddrLow:		dd	0
+	_dwBaseAddrHigh:	dd	0
+	_dwLengthLow:		dd	0
+	_dwLengthHigh:		dd	0
+	_dwType:		dd	0
 _MemChkBuf:	times	256	db	0
 ;
 ;; 保护模式下使用这些符号
@@ -595,11 +650,11 @@ dwDispPos		equ	BaseOfLoaderPhyAddr + _dwDispPos
 dwMemSize		equ	BaseOfLoaderPhyAddr + _dwMemSize
 dwMCRNumber		equ	BaseOfLoaderPhyAddr + _dwMCRNumber
 ARDStruct		equ	BaseOfLoaderPhyAddr + _ARDStruct
-dwBaseAddrLow	equ	BaseOfLoaderPhyAddr + _dwBaseAddrLow
-dwBaseAddrHigh	equ	BaseOfLoaderPhyAddr + _dwBaseAddrHigh
-dwLengthLow	equ	BaseOfLoaderPhyAddr + _dwLengthLow
-dwLengthHigh	equ	BaseOfLoaderPhyAddr + _dwLengthHigh
-dwType		equ	BaseOfLoaderPhyAddr + _dwType
+	dwBaseAddrLow	equ	BaseOfLoaderPhyAddr + _dwBaseAddrLow
+	dwBaseAddrHigh	equ	BaseOfLoaderPhyAddr + _dwBaseAddrHigh
+	dwLengthLow	equ	BaseOfLoaderPhyAddr + _dwLengthLow
+	dwLengthHigh	equ	BaseOfLoaderPhyAddr + _dwLengthHigh
+	dwType		equ	BaseOfLoaderPhyAddr + _dwType
 MemChkBuf		equ	BaseOfLoaderPhyAddr + _MemChkBuf
 
 
