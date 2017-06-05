@@ -48,8 +48,8 @@ LABEL_START:
 	mov	word [wSectorNo], SectorNumOfRootDir
 LABEL_SEARCH_IN_ROOT_DIR_BEGIN:
 	cmp	word [wRootDirSizeForLoop], 0	; ┓
-	jz	LABEL_NO_LOADERBIN		; ┣ 判断根目录区是不是已经读完
-	dec	word [wRootDirSizeForLoop]	; ┛ 如果读完表示没有找到 LOADER.BIN
+	jz	LABEL_NO_LOADERBIN				; ┣ 判断根目录区是不是已经读完
+	dec	word [wRootDirSizeForLoop]		; ┛ 如果读完表示没有找到 LOADER.BIN
 	mov	ax, BaseOfLoader
 	mov	es, ax			; es <- BaseOfLoader
 	mov	bx, OffsetOfloader	; bx <- OffsetOfLoader	于是, es:bx = BaseOfLoader:OffsetOfLoader
@@ -62,9 +62,9 @@ LABEL_SEARCH_IN_ROOT_DIR_BEGIN:
 	cld
 	mov	dx, 10h
 LABEL_SEARCH_FOR_LOADERBIN:
-	cmp	dx, 0					; ┓循环次数控制,
+	cmp	dx, 0								; ┓循环次数控制,
 	jz	LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR	; ┣如果已经读完了一个 Sector,
-	dec	dx					; ┛就跳到下一个 Sector
+	dec	dx									; ┛就跳到下一个 Sector
 	mov	cx, 11
 LABEL_CMP_FILENAME:
 	cmp	cx, 0
@@ -80,10 +80,10 @@ LABEL_GO_ON:
 	jmp	LABEL_CMP_FILENAME	;	继续循环
 
 LABEL_DIFFERENT:
-	and	di, 0FFE0h		; else ┓	di &= E0 为了让它指向本条目开头
-	add	di, 20h			;      ┃
-	mov	si, LoaderFileName	;      ┣ di += 20h  下一个目录条目
-	jmp	LABEL_SEARCH_FOR_LOADERBIN;    ┛
+	and	di, 0FFE0h					; else ┓ di &= E0 为了让它指向本条目开头
+	add	di, 20h						;      ┃
+	mov	si, LoaderFileName			;      ┣ di += 20h  下一个目录条目
+	jmp	LABEL_SEARCH_FOR_LOADERBIN	;      ┛
 
 LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR:
 	add	word [wSectorNo], 1
@@ -94,7 +94,7 @@ LABEL_NO_LOADERBIN:
 	call	DispStr			; 显示字符串
 %ifdef	_BOOT_DEBUG_
 	mov	ax, 4c00h		; ┓
-	int	21h			; ┛没有找到 LOADER.BIN, 回到 DOS
+	int	21h				; ┛没有找到 LOADER.BIN, 回到 DOS
 %else
 	jmp	$			; 没有找到 LOADER.BIN, 死循环在这里
 %endif
@@ -118,9 +118,9 @@ LABEL_GOON_LOADING_FILE:
 	mov	ah, 0Eh			; ┃ 每读一个扇区就在 "Booting  " 后面打一个点, 形成这样的效果:
 	mov	al, '.'			; ┃
 	mov	bl, 0Fh			; ┃ Booting ......
-	int	10h			; ┃
-	pop	bx			; ┃
-	pop	ax			; ┛
+	int	10h				; ┃
+	pop	bx				; ┃
+	pop	ax				; ┛
 
 	mov	cl, 1
 	call	ReadSector

@@ -1,3 +1,4 @@
+
 org	0100h
 	jmp LABEL_START
 	nop
@@ -7,22 +8,24 @@ org	0100h
 %include	"load.inc"
 
 ; GDT
+; --------------------------------------------------------------------------
 LABEL_GDT:	Descriptor	0,	0,	0,
-; 可执行段
-LABEL_DESC_FLAT_C:	Descriptor	0,	0fffffh,	DA_CR | DA_32 | DA_LIMIT_4K
-; 读写段
-LABEL_DESC_FLAT_RW:	Descriptor	0,	0fffffh,	DA_DRW | DA_32 | DA_LIMIT_4K
+LABEL_DESC_FLAT_C:	Descriptor	0,	0fffffh,	DA_CR | DA_32 | DA_LIMIT_4K		; 可执行段
+LABEL_DESC_FLAT_RW:	Descriptor	0,	0fffffh,	DA_DRW | DA_32 | DA_LIMIT_4K	; 读写段
 LABEL_DESC_VIDEO:	Descriptor	0B8000h,	0fffffh,	DA_DRW | DA_DPL3
-
+; --------------------------------------------------------------------------
 GdtLen 	equ	$ - LABEL_GDT
 GdtPtr	dw	GdtLen							;段界
 		dd	BaseOfLoaderPhyAddr + LABEL_GDT	;基址
 
 ; Selector
+; --------------------------------------------------------------------------
 SelectorFlatC	equ	LABEL_DESC_FLAT_C	- LABEL_GDT
 SelectorFlatRW	equ	LABEL_DESC_FLAT_RW	- LABEL_GDT
 SelectorVideo	equ	LABEL_DESC_VIDEO	- LABEL_GDT + SA_RPL3
+; --------------------------------------------------------------------------
 
+; 基址
 BaseOfStack	equ	0100h
 PageDirBase	equ	100000h	; 页目录开始地址:	1M
 PageTblBase	equ	101000h	; 页表开始地址:		1M + 4K
@@ -148,7 +151,7 @@ LABEL_FILE_LOADED:
 	cli
 	
 	in al, 92h
-	or al, 20H
+	or al, 20h
 	out 92h, al
 	
 	mov eax, cr0
@@ -158,13 +161,12 @@ LABEL_FILE_LOADED:
 	jmp SelectorFlatC:(BaseOfLoaderPhyAddr+LABEL_PM_START)
 	
 KillMotor:
-	;关闭软盘马达
 	push	dx
-	mov dx, 03F2h
-	mov al, 0
-	out dx, al
-	pop dx
-
+	mov	dx, 03F2h
+	mov	al, 0
+	out	dx, al
+	pop	dx
+	ret
 ; 32位代码段
 [SECTION .s32]
 
@@ -191,7 +193,7 @@ bOdd			db	0		; 奇数还是偶数
 KernelFileName		db	"KERNEL  BIN", 0	; 
 
 MessageLength	equ	9
-BootMessage:	db	"loading  "; 9字节, 不够则用空格补齐. 序号 0
+LoadingMessage:	db	"Loading  "; 9字节, 不够则用空格补齐. 序号 0
 Message1		db	"Ready.   "; 9字节, 不够则用空格补齐. 序号 1
 Message2		db	"No KERNEL"; 9字节, 不够则用空格补齐. 序号 2
 ;============================================================================
@@ -205,7 +207,7 @@ Message2		db	"No KERNEL"; 9字节, 不够则用空格补齐. 序号 2
 DispStr:
 	mov	ax, MessageLength
 	mul	dh
-	add	ax, BootMessage
+	add	ax, LoadingMessage
 	mov	bp, ax			; ┓
 	mov	ax, ds			; ┣ ES:BP = 串地址
 	mov	es, ax			; ┛
@@ -213,6 +215,7 @@ DispStr:
 	mov	ax, 01301h		; AH = 13,  AL = 01h
 	mov	bx, 0007h		; 页号为0(BH = 0) 黑底白字(BL = 07h)
 	mov	dl, 0
+	add dh, 3
 	int	10h			; int 10h
 	ret
 	

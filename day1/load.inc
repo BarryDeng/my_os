@@ -1,7 +1,10 @@
-BaseOfLoader	equ	09000h	;loader.bin段地址
-OffsetOfloader	equ	0100h	;loader.bin偏移
- 
-BaseOfLoaderPhyAddr	equ	BaseOfLoader * 10h	;物理地址
- 
-BaseOfKernelFile	equ	08000h
-OffsetOfkernelFile	equ	0h
+
+BaseOfLoader		equ	 09000h	; LOADER.BIN 被加载到的位置 ----  段地址
+OffsetOfLoader		equ	  0100h	; LOADER.BIN 被加载到的位置 ---- 偏移地址
+
+BaseOfLoaderPhyAddr	equ	BaseOfLoader * 10h	;
+
+
+BaseOfKernelFile	equ	 08000h	; KERNEL.BIN 被加载到的位置 ----  段地址
+OffsetOfKernelFile	equ	     0h	; KERNEL.BIN 被加载到的位置 ---- 偏移地址
+
