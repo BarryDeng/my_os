@@ -27,7 +27,8 @@ SelectorVideo		equ	LABEL_DESC_VIDEO	- LABEL_GDT + SA_RPL3
 
 
 BaseOfStack	equ	0100h
-
+PageDirBase	equ	100000h	; 页目录开始地址:	1M
+PageTblBase	equ	101000h	; 页表开始地址:		1M + 4K
 
 LABEL_START:			
 	mov	ax, cs
@@ -350,6 +351,11 @@ LABEL_PM_START:
 	add	esp, 4
 
 	call	DispMemInfo
+	
+	mov	ah, 0Fh				; 0000: 黑底    1111: 白字
+	mov	al, 'P'
+	mov	[gs:((80 * 0 + 39) * 2)], ax	; 屏幕第 0 行, 第 39 列。
+	
 	call	SetupPaging
 
 	mov	ah, 0Fh				; 0000: 黑底    1111: 白字
@@ -553,7 +559,7 @@ DispMemInfo:
 
 	call	DispReturn		;printf("\n");
 	push	szRAMSize		;
-	call	DispStr2		;printf("RAM size:");
+	call	DispStr		;printf("RAM size:");
 	add	esp, 4			;
 					;
 	push	dword [dwMemSize]	;
@@ -565,7 +571,6 @@ DispMemInfo:
 	pop	esi
 	ret
 ; ---------------------------------------------------------------------------
-
 
 ; 启动分页机制 --------------------------------------------------------------
 SetupPaging:
