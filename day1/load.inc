@@ -1,10 +1,11 @@
 
-BaseOfLoader		equ	 09000h	; LOADER.BIN Х╒╚Е┼═Х╫╫Е┬╟Г └Д╫█Г╫╝ ----  Ф╝╣Е°╟Е²─
-OffsetOfLoader		equ	  0100h	; LOADER.BIN Х╒╚Е┼═Х╫╫Е┬╟Г └Д╫█Г╫╝ ---- Е│▐Г╖╩Е°╟Е²─
 
-BaseOfLoaderPhyAddr	equ	BaseOfLoader * 10h	;
+BaseOfLoader		equ	 09000h	; LOADER.BIN ╠╩╪сть╣╫╣дн╩жц ----  ╤н╣ьж╥
+OffsetOfLoader		equ	  0100h	; LOADER.BIN ╠╩╪сть╣╫╣дн╩жц ---- ф╚рф╣ьж╥
+
+BaseOfLoaderPhyAddr	equ	BaseOfLoader * 10h	; LOADER.BIN ╠╩╪сть╣╫╣дн╩жц ---- нОюМ╣ьж╥ (= BaseOfLoader * 10h)
 
 
-BaseOfKernelFile	equ	 08000h	; KERNEL.BIN Х╒╚Е┼═Х╫╫Е┬╟Г └Д╫█Г╫╝ ----  Ф╝╣Е°╟Е²─
-OffsetOfKernelFile	equ	     0h	; KERNEL.BIN Х╒╚Е┼═Х╫╫Е┬╟Г └Д╫█Г╫╝ ---- Е│▐Г╖╩Е°╟Е²─
+BaseOfKernelFile	equ	 08000h	; KERNEL.BIN ╠╩╪сть╣╫╣дн╩жц ----  ╤н╣ьж╥
+OffsetOfKernelFile	equ	     0h	; KERNEL.BIN ╠╩╪сть╣╫╣дн╩жц ---- ф╚рф╣ьж╥
 
