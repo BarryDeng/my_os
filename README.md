@@ -1,7 +1,9 @@
 # my_os
 
 《自己动手写操作系统》的学习代码
-&emsp;&emsp;BIOS -> MBR -> OBR -> kernel
+
+
+BIOS -> MBR -> OBR -> kernel
 
 ### day1 
 &emsp;&emsp;在引导扇区写入boot，通过boot在root扇区范围寻找loader，加载进内存后，执行loader寻找kernel
