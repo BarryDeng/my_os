@@ -14,10 +14,6 @@ StackTop:
 global _start	; 导出 _start
 
 _start:
-	mov	ah, 0Fh				
-	mov	al, 'W'
-	mov	[gs:((80 * 1 + 39) * 2)], ax	
-	
 	mov	esp, StackTop	; 堆栈在 bss 段中
 
 	sgdt	[gdt_ptr]	; cstart() 中将会用到 gdt_ptr
@@ -27,9 +23,6 @@ _start:
 	jmp	SELECTOR_KERNEL_CS:csinit
 	
 csinit:
-	mov	ah, 0Fh				
-	mov	al, 'W'
-	mov	[gs:((80 * 2 + 39) * 2)], ax	
 	push	0
 	popfd	; Pop top of stack into EFLAGS
 
