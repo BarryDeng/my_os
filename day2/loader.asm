@@ -434,7 +434,6 @@ LABEL_PM_START:
 
 
 
-
 %include	"lib.inc"
 
 ; kernel.bin 的elf文件头信息
