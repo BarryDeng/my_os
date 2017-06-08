@@ -19,5 +19,6 @@ PUBLIC void cstart()
 	t_32* p_gdt_base  = (t_32*)(&gdt_ptr[2]);
 	*p_gdt_limit = GDT_SIZE * sizeof(DESCRIPTOR) - 1;
 	*p_gdt_base  = (t_32)&gdt;
+	disp_str("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n------\"cstart\" finished-----\n");
 }
  
