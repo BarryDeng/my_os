@@ -15,7 +15,7 @@ ENTRYOFFSET	=   0x400
 
 # Programs, flags, etc.
 ASM		= nasm
-DASM		= ndisasm
+DASM	= ndisasm
 CC		= gcc
 LD		= ld
 ASMBFLAGS	= -I boot/include
@@ -53,10 +53,10 @@ disasm :
 	$(DASM) $(DASMFLAGS) $(TINIXKERNEL) > $(DASMOUTPUT)
 
 buildimg :
-	mount TINIX.IMG /mnt/floppy -o loop
-	cp -f boot/loader.bin /mnt/
-	cp -f kernel.bin /mnt/
-	umount  /mnt/floppy
+	sudo mount TINIX.IMG /mnt/ -o loop
+	sudo cp boot/loader.bin /mnt/ -v
+	sudo cp kernel.bin /mnt/ -v
+	sudo umount  /mnt/
 
 boot/boot.bin : boot/boot.asm boot/include/load.inc boot/include/fat12hdr.inc
 	$(ASM) $(ASMBFLAGS) -o $@ $<
