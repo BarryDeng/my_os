@@ -18,17 +18,17 @@ ASM		= nasm
 DASM	= ndisasm
 CC		= gcc
 LD		= ld
-ASMBFLAGS	= -I boot/include
-ASMKFLAGS	= -I include -f elf
-CFLAGS		= -I include -c -fno-builtin
+ASMBFLAGS	= -I boot/include/
+ASMKFLAGS	= -I include/ -f elf
+CFLAGS		= -I include/ -c -fno-builtin
 LDFLAGS		= -s -Ttext $(ENTRYPOINT)
 DASMFLAGS	= -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 
 # This Program
 TINIXBOOT	= boot/boot.bin boot/loader.bin
 TINIXKERNEL	= kernel.bin
-OBJS		= kernel/kernel.o kernel/start.o kernel/protect.o\
-			lib/klib.o lib/string.o
+OBJS		= kernel/kernel.o kernel/start.o lib/string.o\
+			lib/klib.o 
 DASMOUTPUT	= kernel.bin.asm
 
 # All Phony Targets
@@ -53,7 +53,7 @@ disasm :
 	$(DASM) $(DASMFLAGS) $(TINIXKERNEL) > $(DASMOUTPUT)
 
 buildimg :
-	sudo mount TINIX.IMG /mnt/ -o loop
+	sudo mount boot.img /mnt/ -o loop
 	sudo cp boot/loader.bin /mnt/ -v
 	sudo cp kernel.bin /mnt/ -v
 	sudo umount  /mnt/
@@ -61,7 +61,7 @@ buildimg :
 boot/boot.bin : boot/boot.asm boot/include/load.inc boot/include/fat12hdr.inc
 	$(ASM) $(ASMBFLAGS) -o $@ $<
 
-boot/loader.bin : boot/loader.asm boot/include/load.inc boot/include/fat12hdr.inc boot/include/pm.inc
+boot/loader.bin : boot/loader.asm boot/include/load.inc boot/include/fat12hdr.inc boot/include/pm.inc boot/include/lib.inc
 	$(ASM) $(ASMBFLAGS) -o $@ $<
 
 $(TINIXKERNEL) : $(OBJS)
@@ -70,10 +70,7 @@ $(TINIXKERNEL) : $(OBJS)
 kernel/kernel.o : kernel/kernel.asm
 	$(ASM) $(ASMKFLAGS) -o $@ $<
 
-kernel/start.o: kernel/start.c include/type.h include/const.h include/protect.h include/proto.h include/string.h include/global.h
-	$(CC) $(CFLAGS) -o $@ $<
-
-kernel/protect.o: kernel/protect.c include/type.h include/const.h include/protect.h include/global.h
+kernel/start.o: kernel/start.c include/type.h include/const.h include/protect.h 
 	$(CC) $(CFLAGS) -o $@ $<
 
 lib/klib.o : lib/klib.asm
