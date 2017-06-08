@@ -6,28 +6,29 @@
 
 # Entry point of Tinix
 # It must be as same as 'KernelEntryPointPhyAddr' in load.inc!!!
-ENTRYPOINT = 0x30400
+ENTRYPOINT	= 0x30400
 
 # Offset of entry point in kernel file
 # It depends on ENTRYPOINT
-ENTRYOFFSET	= 0x400
+ENTRYOFFSET	=   0x400
 
 
 # Programs, flags, etc.
-ASM	= nasm
-DASM	= ndisasm
-CC	= gcc
-LD	= ld
+ASM		= nasm
+DASM		= ndisasm
+CC		= gcc
+LD		= ld
 ASMBFLAGS	= -I boot/include
 ASMKFLAGS	= -I include -f elf
-CFLAGS	= -I include -c -fno-builtin
-LDFLAGS	= -s -Ttext $(ENTRYPOINT)
+CFLAGS		= -I include -c -fno-builtin
+LDFLAGS		= -s -Ttext $(ENTRYPOINT)
 DASMFLAGS	= -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 
 # This Program
 TINIXBOOT	= boot/boot.bin boot/loader.bin
 TINIXKERNEL	= kernel.bin
-OBJS	= kernel/kernel.o kernel/start.o lib/klib.o lib/string.o
+OBJS		= kernel/kernel.o kernel/start.o kernel/protect.o\
+			lib/klib.o lib/string.o
 DASMOUTPUT	= kernel.bin.asm
 
 # All Phony Targets
@@ -51,12 +52,10 @@ realclean :
 disasm :
 	$(DASM) $(DASMFLAGS) $(TINIXKERNEL) > $(DASMOUTPUT)
 
-# Write "boot.bin" & "loader.bin" into floppy image "TINIX.IMG"
-# We assume that "TINIX.IMG" exists in current folder
 buildimg :
 	mount TINIX.IMG /mnt/floppy -o loop
-	cp -f boot/loader.bin /mnt/floppy/
-	cp -f kernel.bin /mnt/floppy
+	cp -f boot/loader.bin /mnt/
+	cp -f kernel.bin /mnt/
 	umount  /mnt/floppy
 
 boot/boot.bin : boot/boot.asm boot/include/load.inc boot/include/fat12hdr.inc
@@ -71,7 +70,10 @@ $(TINIXKERNEL) : $(OBJS)
 kernel/kernel.o : kernel/kernel.asm
 	$(ASM) $(ASMKFLAGS) -o $@ $<
 
-kernel/start.o : kernel/start.c ./include/type.h ./include/const.h ./include/protect.h
+kernel/start.o: kernel/start.c include/type.h include/const.h include/protect.h include/proto.h include/string.h include/global.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+kernel/protect.o: kernel/protect.c include/type.h include/const.h include/protect.h include/global.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 lib/klib.o : lib/klib.asm
