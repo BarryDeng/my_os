@@ -65,7 +65,7 @@ _start:
 	
 csinit:
 	sti
-	;jmp 0x40
+	;jmp 0:0x40
 	;ud2
 	push eax
 	push ecx
