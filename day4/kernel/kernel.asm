@@ -1,11 +1,11 @@
 SELECTOR_KERNEL_CS	equ	8
 
-; µ¼Èëº¯Êı
+; å¯¼å…¥å‡½æ•°
 extern	cstart
 extern	exception_handler
 extern	spurious_irq
 
-; µ¼ÈëÈ«¾Ö±äÁ¿
+; å¯¼å…¥å…¨å±€å˜é‡
 extern	gdt_ptr
 extern	idt_ptr
 extern	disp_pos
@@ -14,11 +14,11 @@ bits 32
 
 [SECTION .bss]
 StackSpace		resb	2 * 1024
-StackTop:		; Õ»¶¥
+StackTop:		; æ ˆé¡¶
 
-[section .text]	; ´úÂëÔÚ´Ë
+[section .text]	; ä»£ç åœ¨æ­¤
 
-global _start	; µ¼³ö _start
+global _start	; å¯¼å‡º _start
 
 global	divide_error
 global	single_step_exception
@@ -54,31 +54,31 @@ global	hwint14
 global	hwint15
 
 _start:
-	mov	esp, StackTop	; ¶ÑÕ»ÔÚ bss ¶ÎÖĞ
+	mov	esp, StackTop	; å †æ ˆåœ¨ bss æ®µä¸­
 
-	sgdt	[gdt_ptr]	; cstart() ÖĞ½«»áÓÃµ½ gdt_ptr
-	call	cstart		; ÔÚ´Ëº¯ÊıÖĞ¸Ä±äÁËgdt_ptr£¬ÈÃËüÖ¸ÏòĞÂµÄGDT
-	lgdt	[gdt_ptr]	; Ê¹ÓÃĞÂµÄGDT
+	sgdt	[gdt_ptr]	; cstart() ä¸­å°†ä¼šç”¨åˆ° gdt_ptr
+	call	cstart		; åœ¨æ­¤å‡½æ•°ä¸­æ”¹å˜äº†gdt_ptrï¼Œè®©å®ƒæŒ‡å‘æ–°çš„GDT
+	lgdt	[gdt_ptr]	; ä½¿ç”¨æ–°çš„GDT
 
-	lidt	[idt_ptr]	;Æô¶¯idt
+	lidt	[idt_ptr]	;å¯åŠ¨idt
 	jmp	SELECTOR_KERNEL_CS:csinit
 	
 csinit:
 	sti
 	;jmp 0:0x40
 	;ud2
-	push eax
-	push ecx
+	;push eax
+	;push ecx
 
-	mov ax, 10
-	mov cl, 0
-	div cl
+	;mov ax, 10
+	;mov cl, 0
+	;div cl
 	
-	pop ecx
-	pop eax
+	;pop ecx
+	;pop eax
 	hlt
 
-; ÖĞ¶ÏºÍÒì³£ -- Ó²¼şÖĞ¶Ï
+; ä¸­æ–­å’Œå¼‚å¸¸ -- ç¡¬ä»¶ä¸­æ–­
 ; ---------------------------------
 %macro	hwint_master	1
 	push	%1
@@ -162,7 +162,7 @@ hwint15:		; Interrupt routine for irq 15
 	hwint_slave	15
 	
 
-; ÖĞ¶ÏºÍÒì³£ -- Òì³£
+; ä¸­æ–­å’Œå¼‚å¸¸ -- å¼‚å¸¸
 divide_error:
 	push	0xFFFFFFFF	; no err code
 	push	0		; vector_no	= 0
@@ -224,5 +224,5 @@ copr_error:
 
 exception:
 	call	exception_handler
-	add	esp, 4*2	; ÈÃÕ»¶¥Ö¸Ïò EIP£¬¶ÑÕ»ÖĞ´Ó¶¥ÏòÏÂÒÀ´ÎÊÇ£ºEIP¡¢CS¡¢EFLAGS
+	add	esp, 4*2	; è®©æ ˆé¡¶æŒ‡å‘ EIPï¼Œå †æ ˆä¸­ä»é¡¶å‘ä¸‹ä¾æ¬¡æ˜¯ï¼šEIPã€CSã€EFLAGS
 	hlt
