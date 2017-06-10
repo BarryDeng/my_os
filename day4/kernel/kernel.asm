@@ -1,22 +1,25 @@
-
 SELECTOR_KERNEL_CS	equ	8
 
-; 导入函数和全局变量
-extern cstart
-extern exception_handler
-extern spurious_irq
-extern disp_pos
-extern gdt_ptr
-extern idt_ptr
+; 导入函数
+extern	cstart
+extern	exception_handler
+extern	spurious_irq
+
+; 导入全局变量
+extern	gdt_ptr
+extern	idt_ptr
+extern	disp_pos
 
 bits 32
-[section .bss]
-StackSpace	resb	2 * 1024
-StackTop:
+
+[SECTION .bss]
+StackSpace		resb	2 * 1024
+StackTop:		; 栈顶
 
 [section .text]	; 代码在此
 
 global _start	; 导出 _start
+
 global	divide_error
 global	single_step_exception
 global	nmi
@@ -62,7 +65,17 @@ _start:
 	
 csinit:
 	sti
+	;jmp 0x40
+	;ud2
+	push eax
+	push ecx
 
+	mov ax, 10
+	mov cl, 0
+	div cl
+	
+	pop ecx
+	pop eax
 	hlt
 
 ; 中断和异常 -- 硬件中断

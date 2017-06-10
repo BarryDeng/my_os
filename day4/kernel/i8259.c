@@ -18,7 +18,7 @@ PUBLIC void init_8259A()
 	out_byte(INT_S_CTL, 0x11);
 	out_byte(INT_S_CTLMASK, INT_VECTOR_IRQ8);	//从片中断入口地址为 0x28
 	out_byte(INT_S_CTLMASK, 0x4);
-	out_byte(INT_S_CTLMASK);
+	out_byte(INT_S_CTLMASK, 0x1);
 	//OCW1 关闭所有中断
 	out_byte(INT_S_CTL, 0xff);
 	
