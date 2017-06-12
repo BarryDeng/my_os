@@ -13,3 +13,5 @@ BIOS -> MBR -> OBR -> kernel
 &emsp;&emsp;扩展内核代码，更新GDT，添加disp_str打印字符串函数，建立目录树，添加Makefile
 ### day4
 &emsp;&emsp;初始化8259，打开中断机制，添加中断处理程序
+### day5
+&emsp;&emsp;
