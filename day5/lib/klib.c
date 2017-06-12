@@ -50,5 +50,5 @@ PUBLIC void delay(int time)
 	int i, j, k;
 	for (k = 0; k < time; k++)
 		for (i = 0; i < 1000; i++)
-			for (j = 0; j < 100; j++){}
+			for (j = 0; j < 1000; j++){}
 }

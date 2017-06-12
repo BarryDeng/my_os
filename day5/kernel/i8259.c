@@ -11,7 +11,7 @@ PUBLIC void init_8259A()
 	out_byte(INT_M_CTLMASK, 0x4);
 	out_byte(INT_M_CTLMASK, 0x1);
 	//OCW1 关闭所有中断
-	out_byte(INT_M_CTLMASK, 0xff);
+	out_byte(INT_M_CTLMASK, 0xfe);
 	
 	
 	//从片

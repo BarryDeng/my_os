@@ -6,6 +6,9 @@ extern	cstart
 extern	tinix_main
 extern	exception_handler
 extern	spurious_irq
+extern	disp_str
+extern	disp_int
+extern	delay
 
 ; 导入全局变量
 extern	gdt_ptr
@@ -13,8 +16,12 @@ extern	idt_ptr
 extern	p_proc_ready
 extern	tss
 extern	disp_pos
+extern	k_reenter
 
 bits 32
+
+[SECTION .data]
+clock_int_msg	db	"*", 0
 
 [SECTION .bss]
 StackSpace		resb	2 * 1024
@@ -94,6 +101,49 @@ csinit:
 
 ALIGN	16
 hwint00:		; Interrupt routine for irq 0 (the clock).
+	sub esp, 4
+	pushad
+	push	ds
+	push	es
+	push	fs
+	push	gs
+	mov dx, ss
+	mov ds, dx
+	mov es, dx
+
+;	inc  byte [gs:0]
+	mov al, EOI
+	out INT_M_CTL, al
+
+	inc dword [k_reenter]
+	cmp dword [k_reenter], 0
+	jne	.re_enter
+
+	mov esp, StackTop
+	sti
+	push	clock_int_msg	
+	call disp_str
+	add	esp, 4
+;	push	1
+;	call	delay
+;	add esp, 4
+	cli
+
+	mov esp, [p_proc_ready]
+	lea eax, [esp + P_STACKTOP]
+	mov dword [tss + TSS3_S_SP0], eax
+
+.re_enter:
+	dec	dword	[k_reenter]
+	pop	gs
+	pop	fs
+	pop	es
+	pop	ds
+	popad
+
+	add esp, 4
+
+	iretd
 	hwint_master	0
 
 ALIGN	16

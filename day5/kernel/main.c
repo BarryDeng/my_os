@@ -12,6 +12,8 @@ PUBLIC int tinix_main()
 {
 	disp_str("-----\"tinix_main\" begins-----\n");
 
+	k_reenter = -1;
+
 	PROCESS* p_proc	= proc_table;
 	p_proc->ldt_sel	= SELECTOR_LDT_FIRST;
 	memcpy(&p_proc->ldts[0], &gdt[SELECTOR_KERNEL_CS >> 3], sizeof(DESCRIPTOR));
@@ -39,8 +41,8 @@ void TestA()
 {
 	int i = 0;
 	while(1){
-		//disp_str("A");
-		//disp_int(i++);
+		disp_str("A");
+		disp_int(i++);
 		disp_str(".");
 		delay(1);
 	}
