@@ -6,10 +6,9 @@ extern	cstart
 extern	tinix_main
 extern	exception_handler
 extern	spurious_irq
-extern	disp_str
-extern	disp_int
-extern	delay
 extern	clock_handler
+extern	disp_str
+extern	delay
 
 ; 导入全局变量
 extern	gdt_ptr
@@ -18,6 +17,7 @@ extern	p_proc_ready
 extern	tss
 extern	disp_pos
 extern	k_reenter
+extern	irq_table
 
 bits 32
 
@@ -79,10 +79,6 @@ _start:
 	jmp	SELECTOR_KERNEL_CS:csinit
 	
 csinit:
-	;sti
-	;jmp 0x40
-	;ud2
-	
 	xor eax, eax
 	mov ax, SELECTOR_TSS
 	ltr ax
@@ -90,63 +86,53 @@ csinit:
 ;hlt
 
 
+save:
+	pushad		; ┓
+	push	ds	; ┃
+	push	es	; ┣ 保存原寄存器值
+	push	fs	; ┃
+	push	gs	; ┛
+	mov	dx, ss
+	mov	ds, dx
+	mov	es, dx
+
+	mov	eax, esp			; eax = 进程表起始地址
+
+	inc	dword [k_reenter]		
+	cmp	dword [k_reenter], 0	
+	jne	.1				
+	mov	esp, StackTop			
+	push	restart				
+	jmp	[eax + RETADR - P_STACKBASE]	
+.1:						
+	push	restart_reenter			
+	jmp	[eax + RETADR - P_STACKBASE]	
+	
+	
 ; 中断和异常 -- 硬件中断
 ; ---------------------------------
 %macro	hwint_master	1
-	push	%1
-	call	spurious_irq
-	add	esp, 4
-	hlt
+	call	save
+	in	al, INT_M_CTLMASK	; ┓
+	or	al, (1 << %1)		; ┣ 屏蔽当前中断
+	out	INT_M_CTLMASK, al	; ┛
+	mov	al, EOI				; ┓置EOI位
+	out	INT_M_CTL, al		; ┛
+	sti		; CPU在响应中断的过程中会自动关中断，这句之后就允许响应新的中断
+	push	%1						; ┓
+	call	[irq_table + 4 * %1]	; ┣ 中断处理程序
+	pop	ecx							; ┛
+	cli
+	in	al, INT_M_CTLMASK	; ┓
+	and	al, ~(1 << %1)		; ┣ 恢复接受当前中断
+	out	INT_M_CTLMASK, al	; ┛
+	ret
 %endmacro
 
 
 ALIGN	16
 hwint00:		; Interrupt routine for irq 0 (the clock).
-	sub esp, 4
-	pushad
-	push	ds
-	push	es
-	push	fs
-	push	gs
-	mov dx, ss
-	mov ds, dx
-	mov es, dx
-
-	mov esp, StackTop	;切换到内核栈
-;	inc  byte [gs:0]
-	mov al, EOI
-	out INT_M_CTL, al
-
-	inc dword [k_reenter]
-	cmp dword [k_reenter], 0
-	jne	.re_enter
-
-
-	sti
-	push	0	
-	call clock_handler
-	add	esp, 4
-;	push	1
-;	call	delay
-;	add esp, 4
-	cli
-
-	mov esp, [p_proc_ready]		;离开内核栈，切换到进程表
-	lldt	[esp + P_LDT_SEL]	;进程切换重新加载LDT
-	lea eax, [esp + P_STACKTOP]
-	mov dword [tss + TSS3_S_SP0], eax
-
-.re_enter:
-	dec	dword	[k_reenter]
-	pop	gs
-	pop	fs
-	pop	es
-	pop	ds
-	popad
-
-	add esp, 4
-
-	iretd
+	hwint_master	0
 
 ALIGN	16
 hwint01:		; Interrupt routine for irq 1 (keyboard)
@@ -283,14 +269,13 @@ exception:
 	add	esp, 4*2	; 让栈顶指向 EIP，堆栈中从顶向下依次是：EIP、CS、EFLAGS
 	hlt
 
-; ====================================================================================
-;                                   restart
-; ====================================================================================
 restart:
 	mov	esp, [p_proc_ready]
 	lldt	[esp + P_LDT_SEL] 
 	lea	eax, [esp + P_STACKTOP]
 	mov	dword [tss + TSS3_S_SP0], eax
+restart_reenter:
+	dec	dword [k_reenter]
 	pop	gs
 	pop	fs
 	pop	es

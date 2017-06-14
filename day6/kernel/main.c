@@ -1,4 +1,3 @@
-
 #include "type.h"
 #include "const.h"
 #include "protect.h"
@@ -8,21 +7,22 @@
 #include "global.h"
 
 
+/*======================================================================*
+                            tinix_main
+ *======================================================================*/
 PUBLIC int tinix_main()
 {
 	disp_str("-----\"tinix_main\" begins-----\n");
 
-	k_reenter = -1;
-
-	PROCESS* p_proc	= proc_table;
-	TASK*	p_task	= task_table;
-	char*	p_task_stack = task_stack + STACK_SIZE_TOTAL;
-	t_16	selector_ldt = SELECTOR_LDT_FIRST;
+	TASK*		p_task		= task_table;
+	PROCESS*	p_proc		= proc_table;
+	char*		p_task_stack	= task_stack + STACK_SIZE_TOTAL;
+	t_16		selector_ldt	= SELECTOR_LDT_FIRST;
 	int i;
-	
-	for (i = 0; i < NR_TASKS; i++){
-		strcpy(p_proc->p_name, p_task->name);
-		p_proc->pid = i;
+	for(i=0;i<NR_TASKS;i++){
+		strcpy(p_proc->p_name, p_task->name);	// name of the process
+		p_proc->pid	= i;			// pid
+
 		p_proc->ldt_sel	= selector_ldt;
 		memcpy(&p_proc->ldts[0], &gdt[SELECTOR_KERNEL_CS >> 3], sizeof(DESCRIPTOR));
 		p_proc->ldts[0].attr1 = DA_C | PRIVILEGE_TASK << 5;	// change the DPL
@@ -37,18 +37,26 @@ PUBLIC int tinix_main()
 		p_proc->regs.eip	= (t_32)p_task->init_eip;
 		p_proc->regs.esp	= (t_32)p_task_stack;
 		p_proc->regs.eflags	= 0x1202;	// IF=1, IOPL=1, bit 2 is always 1.
-		
+
 		p_task_stack -= p_task->stacksize;
 		p_proc++;
 		p_task++;
 		selector_ldt += 1 << 3;
 	}
-	p_proc_ready	= proc_table; 
+
+	k_reenter = 0;
+
+	p_proc_ready	= proc_table;
+	
+	put_irq_handler(CLOCK_IRQ, clock_handler);	/* 设定时钟中断处理程序 */
+	enable_irq(CLOCK_IRQ);				/* 让8259A可以接收时钟中断 */
+
 	restart();
 
 
 	while(1){}
 }
+
 
 void TestA()
 {
@@ -61,9 +69,10 @@ void TestA()
 	}
 }
 
+
 void TestB()
 {
-	int i = 0;
+	int i = 0x1000;
 	while(1){
 		disp_str("B");
 		disp_int(i++);
@@ -72,9 +81,10 @@ void TestB()
 	}
 }
 
+
 void TestC()
 {
-	int i = 0;
+	int i = 0x2000;
 	while(1){
 		disp_str("C");
 		disp_int(i++);
@@ -82,3 +92,4 @@ void TestC()
 		delay(1);
 	}
 }
+
